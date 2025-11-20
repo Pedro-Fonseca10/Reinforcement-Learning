@@ -7,6 +7,7 @@ from collections import deque
 import torch
 import torch.nn as nn
 import torch.optim as optim
+
 import matplotlib.pyplot as plt
 
 def make_inverted_pendulum(render=True, seed=42, theta_limit_deg=24, x_limit=3.0):
@@ -53,16 +54,20 @@ class Discretizer:
 
 def train_q_learning(
     num_episodes=5000,
-    alpha=0.1,
-    gamma=0.99,
-    epsilon_start=1.0,
+    alpha=0.1, # Taxa de aprendizado
+    gamma=0.99, # Fator de desconto
+    epsilon_start=1.0, # Decrescimento exponencial epsilon
     epsilon_end=0.01,
     epsilon_decay=0.995,
 ):
     env = make_inverted_pendulum(render=False)
-    disc = Discretizer(env)
-    n_actions = env.action_space.n
 
+    # Instancia a discretização do espaço de estados
+    disc = Discretizer(env)
+
+    n_actions = env.action_space.n 
+    
+    # Criação da Q-table
     q_shape = disc.bins + (n_actions,)
     Q = np.zeros(q_shape)
 
@@ -76,6 +81,7 @@ def train_q_learning(
         ep_reward = 0.0
 
         while not done:
+            # epsilon-greedy
             if np.random.rand() < epsilon:
                 action = env.action_space.sample()
             else:
@@ -118,7 +124,6 @@ class DQNNet(nn.Module):
 
     def forward(self, x):
         return self.net(x)
-
 class ReplayBuffer:
     def __init__(self, capacity=50_000):
         self.buffer = deque(maxlen=capacity)
@@ -138,13 +143,13 @@ class ReplayBuffer:
 
 def train_dqn(
     num_episodes=800,
-    gamma=0.99,
-    lr=1e-3,
+    gamma=0.99, # Taxa de redução
+    lr=1e-3, # Taxa de aprendizado
     batch_size=64,
     epsilon_start=1.0,
     epsilon_end=0.05,
     epsilon_decay=0.995,
-    target_update_freq=10,
+    target_update_freq=10, # A target network é atualizada a cada 10 passos (episódios)
 ):
     env = make_inverted_pendulum(render=False)
     obs_dim = env.observation_space.shape[0]
@@ -152,6 +157,7 @@ def train_dqn(
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+    # Criação das duas Networks
     policy_net = DQNNet(obs_dim, n_actions).to(device)
     target_net = DQNNet(obs_dim, n_actions).to(device)
     target_net.load_state_dict(policy_net.state_dict())
@@ -169,7 +175,7 @@ def train_dqn(
         ep_reward = 0.0
 
         while not done:
-            # ε-greedy
+            # epsilon-greedy
             if random.random() < epsilon:
                 action = env.action_space.sample()
             else:
